@@ -89,9 +89,6 @@ function create() {
     this.physics.add.collider(obstacles, ground);
     this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
-    // Voeg score toe
-    scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
-
     // Laat de speler automatisch naar voren rennen
     player.setVelocityX(160);
     player.anims.play('right', true);
