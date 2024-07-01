@@ -25,6 +25,7 @@ let obstacles;
 let score = 0;
 let scoreText;
 let gameOver = false;
+let lastObstacleTime = 0;
 
 function preload() {
     this.load.image('background', 'assets/background.png');
@@ -34,22 +35,15 @@ function preload() {
 }
 
 function create() {
-    // Voeg achtergrond toe en schaal deze
-    let background = this.add.image(config.width / 2, config.height / 2, 'background');
-    background.setDisplaySize(config.width, config.height);
+    this.background = this.add.tileSprite(0, 0, config.width, config.height, 'background').setOrigin(0, 0);
 
-    // Voeg grond toe en schaal deze
     const ground = this.physics.add.staticGroup();
-    let groundImage = ground.create(config.width / 2, config.height - 32, 'ground');
-    groundImage.setDisplaySize(config.width, 64).refreshBody();
+    ground.create(config.width / 2, config.height - 32, 'ground').setDisplaySize(config.width, 64).refreshBody();
 
-    // Voeg speler toe en schaal deze
-    player = this.physics.add.sprite(100, config.height - 150, 'player');
-    player.setBounce(0.2);
+    player = this.physics.add.sprite(100, config.height - 95, 'player');
+    player.setBounce(0);
     player.setCollideWorldBounds(true);
-    player.setScale(1);
 
-    // Voeg animaties toe
     this.anims.create({
         key: 'left',
         frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
@@ -70,47 +64,53 @@ function create() {
         repeat: -1
     });
 
-    // Voeg cursors toe
     cursors = this.input.keyboard.createCursorKeys();
 
-    // Voeg obstakels toe en schaal deze
-    obstacles = this.physics.add.group({
-        key: 'obstacle',
-        repeat: 5,
-        setXY: { x: 600, y: 0, stepX: 300 }
-    });
-
-    obstacles.children.iterate(function (child) {
-        child.setScale(0.1);
-        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-    });
+    obstacles = this.physics.add.group();
+    generateObstacle();
 
     this.physics.add.collider(player, ground);
     this.physics.add.collider(obstacles, ground);
     this.physics.add.collider(player, obstacles, hitObstacle, null, this);
 
-    // Laat de speler automatisch naar voren rennen
     player.setVelocityX(160);
     player.anims.play('right', true);
+
+    scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
 }
 
-function update() {
+function update(time) {
     if (gameOver) {
         return;
     }
 
+    this.background.tilePositionX += 5;
+
     if (cursors.up.isDown && player.body.touching.down) {
-        player.setVelocityY(-330);
+        player.setVelocityY(-250);
     }
 
-    // Zorg ervoor dat de speler altijd naar rechts blijft rennen
-    player.setVelocityX(160);
+    player.x = 100;
 
-    // Laat de 'right' animatie altijd afspelen terwijl de speler beweegt
-    if (player.body.velocity.x !== 0) {
-        player.anims.play('right', true);
-    } else {
-        player.anims.play('turn', true);
+    obstacles.children.iterate(function (child) {
+        if (child) {
+            child.x -= 5;
+
+            if (child.x < -child.width) {
+                child.destroy();
+            }
+
+            if (child.x < player.x && !child.passed) {
+                score += 1;
+                scoreText.setText('Score: ' + score);
+                child.passed = true;
+            }
+        }
+    });
+
+    if (time > lastObstacleTime + Phaser.Math.Between(1000, 3000)) {
+        generateObstacle();
+        lastObstacleTime = time;
     }
 }
 
@@ -119,4 +119,13 @@ function hitObstacle(player, obstacle) {
     player.setTint(0xff0000);
     player.anims.play('turn');
     gameOver = true;
+}
+
+function generateObstacle() {
+    const obstacleX = config.width + Phaser.Math.Between(300, 800);
+    const obstacleY = config.height - 89;
+    const obstacle = obstacles.create(obstacleX, obstacleY, 'obstacle');
+    obstacle.setScale(0.1);
+    obstacle.setBounce(0);
+    obstacle.body.setAllowGravity(false);
 }
